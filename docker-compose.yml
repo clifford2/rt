@@ -1,0 +1,56 @@
+version: '3.6'
+
+#-# Define the network
+networks:
+  rtnet:
+
+#-# Define secrets
+# openssl rand -base64 21 > $PWD/passwords/mysql-root-passwd
+# openssl rand -base64 21 > $PWD/passwords/mysql-user-passwd
+secrets:                                                                                                                                    
+  mysql-root-passwd:
+    file: $PWD/passwords/mysql-root-passwd
+  mysql-user-passwd:
+    file: $PWD/passwords/mysql-user-passwd
+
+
+#-# Define services
+services:
+
+  db:
+    image: mariadb:10.5
+    networks:
+      rtnet:
+    volumes:
+      - "rtdb:/var/lib/mysql"
+    secrets:
+      - mysql-root-passwd
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: "/run/secrets/mysql-root-passwd"
+    restart: on-failure
+
+  rt:
+    image: cliffordw/rt:latest
+    networks:
+      rtnet:
+    volumes:
+      - "rtdata:/data"
+    ports:
+      - "80:80"
+      - "25:25"
+    secrets:
+      - mysql-root-passwd
+      - mysql-user-passwd
+    environment:
+      DATABASE_HOST: "db"
+      MYSQL_ROOT_PASSWORD_FILE: "/run/secrets/mysql-root-passwd"
+      DATABASE_PASSWORD_FILE: "/run/secrets/mysql-user-passwd"
+      WEB_DOMAIN: "rt.localtest.me"
+    depends_on:
+      - db
+    restart: on-failure
+
+#-# Define volumes
+volumes:
+  rtdb:
+  rtdata:

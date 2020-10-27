@@ -1,0 +1,136 @@
+#!/bin/bash
+
+#-# Sanitize environment vars
+WEB_DOMAIN=${WEB_DOMAIN:-example.com}
+WEB_PROTO=${WEB_PROTO:-http}
+if [ -z "$WEB_PORT" ]
+then
+	if [ "$WEB_PROTO" = "https" ]
+	then
+		WEB_PORT=443
+	else
+		WEB_PORT=80
+	fi
+fi
+WEB_BASEURL=${URL:-${WEB_PROTO}://${WEB_DOMAIN}}
+if [ "$WEB_PROTO" = "http" -a "WEB_PORT" != "80" ]
+then
+	WEB_BASEURL=${WEB_BASEURL}:${WEB_PORT}
+elif [ "$WEB_PROTO" = "https" -a "WEB_PORT" != "443" ]
+then
+	WEB_BASEURL=${WEB_BASEURL}:${WEB_PORT}
+fi
+
+# postfix $mydomain
+EMAIL_DOMAIN=${EMAIL_DOMAIN:-${WEB_DOMAIN}}
+# postfix $myhostname
+EMAIL_HOSTNAME=${EMAIL_HOSTNAME:-${EMAIL_DOMAIN}}
+# postfix root alias
+EMAIL_ADDRESS=${EMAIL_ADDRESS:-rt@${EMAIL_DOMAIN}}
+
+if [ ! -z "$DATABASE_PASSWORD_FILE" -a -e "$DATABASE_PASSWORD_FILE" ]
+then
+	DATABASE_PASSWORD=$(cat "$DATABASE_PASSWORD_FILE")
+	export DATABASE_PASSWORD
+fi
+DATABASE_PORT=${DATABASE_PORT:-3306}
+
+# Make accessible to RT_SiteConfig.pm
+RT_NAME=${RT_NAME:-${WEB_DOMAIN}}
+RT_ORG=${ORG:-${WEB_DOMAIN}}
+export RT_NAME RT_ORG WEB_DOMAIN WEB_PORT WEB_BASEURL
+
+#-# Configure postfix
+umask 022
+cd /etc/postfix && {
+	for fn in *.tpl
+	do
+		bn=$(basename "$fn" .tpl)
+		if [ ! -e "$bn" ]
+		then
+			sed -e "s/{{domain}}/${EMAIL_DOMAIN}/g" -e "s/{{email}}/${EMAIL_ADDRESS}/g" -e "s/{{hostname}}/${EMAIL_HOSTNAME}/g" -e "s|{{url}}|${WEB_BASEURL}|g" "$fn" > "$bn"
+		fi
+	done
+}
+
+#-# Wait for DB to become available
+max=30
+cnt=0
+while :																																	 
+do
+	/bin/nc -z $DATABASE_HOST $DATABASE_PORT > /dev/null 2>&1
+	if [ $? -eq 0 ]
+	then
+		break
+	else
+		echo "Waiting for database at $DATABASE_HOST:$DATABASE_PORT to start - $cnt seconds elapsed"
+		sleep 1
+		cnt=$(expr $cnt + 1)
+		if [ $cnt -ge $max ]
+		then
+			echo "Max time exceeded - aborting"
+			exit 1
+		fi
+	fi
+done
+
+#-# Check DB connection
+set -x
+/usr/local/bin/dbping
+rc=$?
+if [ $rc -ne 0 ]
+then
+	# Database might not be created yes - see if we can connect as root
+	if [ ! -z "$MYSQL_ROOT_PASSWORD_FILE" -a -e "$MYSQL_ROOT_PASSWORD_FILE" ]
+	then
+		MYSQL_ROOT_PASSWORD=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+	fi
+	if [ ! -z "$MYSQL_ROOT_PASSWORD" ]
+	then
+		DATABASE_NAME=mysql DATABASE_USER=root DATABASE_PASSWORD="$MYSQL_ROOT_PASSWORD" /usr/local/bin/dbping
+		rc=$?
+		if [ $rc -eq 0 ]
+		then
+			/usr/local/bin/rtinit
+			rc=$?
+			if [ $? -eq 0 ]
+			then
+				/usr/local/bin/dbping
+				rc=$?
+			fi
+		fi
+	fi
+fi
+if [ $rc -ne 0 ]
+then
+	echo "Error: can't connect to DB - aborting"
+	exit 1
+fi
+
+set -x
+
+#-# Start spamd
+echo "Starting spamd"
+/usr/sbin/spamd -d --max-children 5
+
+#-# Start Postfix
+echo "Starting postfix"
+command_directory=$(postconf -h command_directory)
+"${command_directory}/postfix" check && "${command_directory}/postfix" start
+
+#-# Start RT
+echo "Starting RT"
+# https://docs.bestpractical.com/rt/5.0.0/web_deployment.html#nginx
+test -d /data/gpg || mkdir -p /data/gpg && chmod 700 /data/gpg
+chown -R www-data:www-data /data
+/usr/bin/spawn-fcgi \
+  -s /var/run/rt-server.sock \
+  -u www-data \
+  -U www-data \
+  -G www-data \
+  -M 0700 \
+  -- /opt/rt5/sbin/rt-server.fcgi
+
+#-# Start nginx (with "daemon off" in config file)
+echo "Starting nginx"
+exec /usr/sbin/nginx

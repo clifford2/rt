@@ -1,0 +1,2 @@
+:
+cd /proc && for pid in [1-9]*; do echo "$pid $(cat $pid/comm)"; done

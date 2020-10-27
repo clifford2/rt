@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+# Test connection to DB
+# Based on <https://www.mysqltutorial.org/perl-mysql/perl-mysql-connect/>
+
+use strict;
+use warnings;
+use v5.10; # for say() function
+
+use DBI;
+say "Perl MySQL Connect Test";
+
+# MySQL database configuration
+my $DatabaseHost = $ENV{DATABASE_HOST} || "localhost";
+my $DatabasePort = $ENV{DATABASE_PORT} || 3306;
+my $DatabaseName = $ENV{DATABASE_NAME} || "rtdb";
+my $DatabaseUser = $ENV{DATABASE_USER} || "rtuser";
+my $DatabasePassword = $ENV{DATABASE_PASSWORD} || "rtpass";
+
+
+my $dsn = "DBI:mysql:$DatabaseName:$DatabaseHost:$DatabasePort";
+my $username = "root";
+my $password = '';
+
+# connect to MySQL database
+my %attr = ( PrintError=>0,  # turn off error reporting via warn()
+             RaiseError=>1);   # turn on error reporting via die()           
+
+my $dbh  = DBI->connect($dsn, $DatabaseUser, $DatabasePassword, \%attr);
+
+say "Connected to the MySQL database.";
+
+# disconnect from the MySQL database
+$dbh->disconnect();
+
+exit(0);

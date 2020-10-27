@@ -1,0 +1,20 @@
+#!/bin/sh
+
+set -e
+
+# Validate that we have a password to use
+if [ ! -z "$MYSQL_ROOT_PASSWORD_FILE" -a -e "$MYSQL_ROOT_PASSWORD_FILE" ]
+then
+	MYSQL_ROOT_PASSWORD=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+fi
+if [ ! -z "$MYSQL_ROOT_PASSWORD" ]
+then
+	# Initialise database
+	/opt/rt5/sbin/rt-setup-database --action init --dba root --dba-password "$MYSQL_ROOT_PASSWORD"
+
+	# Set up full text indexing
+	yes '' |
+	/opt/rt5/sbin/rt-setup-fulltext-index \
+	  --dba root \
+	  --dba-password "$MYSQL_ROOT_PASSWORD"
+fi
