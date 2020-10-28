@@ -3,7 +3,7 @@
 # Based on https://github.com/okfn/docker-rt.git
 #
 # Build with:
-#   docker build -t cliffordw/rt:5.0.0 . && docker tag cliffordw/rt:5.0.0 cliffordw/rt:latest
+#   time docker build -t cliffordw/rt:5.0.0 . && docker tag cliffordw/rt:5.0.0 cliffordw/rt:latest
 
 FROM docker.io/library/debian:buster
 
@@ -11,7 +11,6 @@ FROM docker.io/library/debian:buster
 RUN apt-get -q -y update \
   && DEBIAN_FRONTEND=noninteractive apt-get -q -y install \
   build-essential \
-  cpanminus \
   git \
   gnupg \
   graphviz \
@@ -45,7 +44,10 @@ RUN apt-get -q -y update \
   procmail \
   razor \
   spamassassin \
-  spawn-fcgi
+  spawn-fcgi \
+  netcat \
+  cpanminus \
+  && apt-get clean && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
 
 # Set up environment
 ENV PERL_MM_USE_DEFAULT 1
@@ -53,22 +55,26 @@ ENV HOME /root
 ENV RT rt-5.0.0
 ENV RTSRC ${RT}.tar.gz
 
-# Autoconfigure cpan
-RUN echo q | /usr/bin/perl -MCPAN -e shell
+# Autoconfigure cpan for "make fixdeps", and upgrade
+RUN echo "Configure CPAN" \
+  && echo q | /usr/bin/perl -MCPAN -e shell \
+  && cpan install CPAN
 # Install known cpan prereqs
-RUN cpanm DBIx::SearchBuilder IPC::Run3 MIME::Entity Mozilla::CA Path::Dispatcher Plack::Handler::Starlet Regexp::Common Regexp::Common::net::CIDR Regexp::IPv6 GnuPG::Interface
+RUN echo "Install CPAN modules" \
+  && cpanm DBIx::SearchBuilder IPC::Run3 MIME::Entity Mozilla::CA Path::Dispatcher Plack::Handler::Starlet Regexp::Common Regexp::Common::net::CIDR Regexp::IPv6 GnuPG::Interface \
+  && rm -r /root/.cpanm
 
 # Install RT
 RUN mkdir /src
 #ADD http://download.bestpractical.com/pub/rt/release/${RTSRC} /src/${RTSRC}
 COPY ${RTSRC} /src/${RTSRC}
-RUN tar -C /src -xzpvf /src/${RTSRC}
-#RUN ln -s /src/${RT} /src/rt
-
-RUN cd /src/${RT} && ./configure --with-db-type=mysql --enable-gpg --enable-gd --enable-graphviz
-RUN make -C /src/${RT} fixdeps
-RUN make -C /src/${RT} testdeps
-RUN make -C /src/${RT} install
+RUN echo "Install RT"; \
+  tar -C /src -xzpvf /src/${RTSRC} && \
+  rm /src/${RTSRC} && \
+  cd /src/${RT} && ./configure --with-db-type=mysql --enable-gpg --enable-gd --enable-graphviz && \
+  make -C /src/${RT} fixdeps; \
+  make -C /src/${RT} testdeps && \
+  make -C /src/${RT} install
 
 # Add system service config
 ADD ./etc/nginx.conf /etc/nginx/nginx.conf
@@ -82,9 +88,6 @@ RUN echo "Configre postfix" \
   && newaliases \
   && mkdir -m 1777 /var/log/procmail
 
-# Install netcat - fixme: move to other installs
-RUN DEBIAN_FRONTEND=noninteractive apt-get -q -y install netcat
-
 # Configure RT
 ADD ./scripts/ /usr/local/bin/
 ADD ./RT_SiteConfig.pm /opt/rt5/etc/RT_SiteConfig.pm
@@ -94,8 +97,8 @@ RUN echo "Configure RT" \
   && mkdir /var/log/rt5 /var/log/spamd
 ENTRYPOINT [ "/usr/local/bin/entrypoint" ]
 
+RUN rm -rf /tmp/* /var/tmp/*
+
 VOLUME ["/data"]
 EXPOSE 25
 EXPOSE 80
-
-RUN apt-get clean && rm -rf /src/${RTSRC} /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/dpkg.log
