@@ -62,6 +62,7 @@ environment variables, namely:
 	- postfix `$mydomain`: `EMAIL_DOMAIN` (default: `$WEB_DOMAIN`)
 	- postfix `$myhostname`: `EMAIL_HOSTNAME` (default: `$EMAIL_DOMAIN`)
 	- postfix root alias: `EMAIL_ADDRESS` (default: `rt@$EMAIL_DOMAIN`)
+	- RT default queue for new messages: `RT_DEFAULT_QUEUE` (default: `general`)
 
 Additional configuration can be done by mounting custom configuration
 files into `/opt/rt5/etc/RT_SiteConfig.d/`.

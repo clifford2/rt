@@ -8,3 +8,5 @@ unknown_local_recipient_reject_code = 550
 alias_maps = hash:/etc/postfix/aliases
 alias_database = hash:/etc/postfix/aliases
 recipient_delimiter = -
+compatibility_level = 2
+maillog_file = /var/log/postfix.log

@@ -27,6 +27,8 @@ EMAIL_DOMAIN=${EMAIL_DOMAIN:-${WEB_DOMAIN}}
 EMAIL_HOSTNAME=${EMAIL_HOSTNAME:-${EMAIL_DOMAIN}}
 # postfix root alias
 EMAIL_ADDRESS=${EMAIL_ADDRESS:-rt@${EMAIL_DOMAIN}}
+# RT default queue for new incoming messages
+RT_DEFAULT_QUEUE=${RT_DEFAULT_QUEUE:general}
 
 if [ ! -z "$DATABASE_PASSWORD_FILE" -a -e "$DATABASE_PASSWORD_FILE" ]
 then
@@ -38,20 +40,23 @@ DATABASE_PORT=${DATABASE_PORT:-3306}
 # Make accessible to RT_SiteConfig.pm
 RT_NAME=${RT_NAME:-${WEB_DOMAIN}}
 RT_ORG=${ORG:-${WEB_DOMAIN}}
-export RT_NAME RT_ORG WEB_DOMAIN WEB_PORT WEB_BASEURL
+export RT_NAME RT_ORG WEB_DOMAIN WEB_PORT WEB_BASEURL EMAIL_ADDRESS
 
 #-# Configure postfix
 umask 022
+command_directory=$(postconf -h command_directory)
 cd /etc/postfix && {
 	for fn in *.tpl
 	do
 		bn=$(basename "$fn" .tpl)
-		if [ ! -e "$bn" ]
-		then
-			sed -e "s/{{domain}}/${EMAIL_DOMAIN}/g" -e "s/{{email}}/${EMAIL_ADDRESS}/g" -e "s/{{hostname}}/${EMAIL_HOSTNAME}/g" -e "s|{{url}}|${WEB_BASEURL}|g" "$fn" > "$bn"
-		fi
+		sed -e "s/{{domain}}/${EMAIL_DOMAIN}/g" -e "s/{{email}}/${EMAIL_ADDRESS}/g" -e "s/{{hostname}}/${EMAIL_HOSTNAME}/g" -e "s|{{url}}|${WEB_BASEURL}|g" -e "s/{{queue}}/${RT_DEFAULT_QUEUE}/g" "$fn" > "$bn"
 	done
 }
+echo -e "www-data@${EMAIL_DOMAIN}\t${EMAIL_ADDRESS}" > /etc/postfix/generic
+${command_directory}/postconf -e 'smtp_generic_maps=hash:/etc/postfix/generic'
+${command_directory}/postmap /etc/postfix/generic
+cp -p /etc/resolv.conf $(postconf -h queue_directory)/etc/resolv.conf
+newaliases
 
 #-# Wait for DB to become available
 max=30
@@ -115,10 +120,13 @@ echo "Starting spamd"
 
 #-# Start Postfix
 echo "Starting postfix"
-command_directory=$(postconf -h command_directory)
 "${command_directory}/postfix" check && "${command_directory}/postfix" start
 
-#-# Start RT
+#-# Start nginx (in background - set "daemon off" in config file to keep in foreground, and `exec /usr/sbin/nginx`)
+echo "Starting nginx"
+/usr/sbin/nginx
+
+#-# Start RT (in forground - "-n")
 echo "Starting RT"
 # https://docs.bestpractical.com/rt/5.0.0/web_deployment.html#nginx
 test -d /data/gpg || mkdir -p /data/gpg && chmod 700 /data/gpg
@@ -129,8 +137,5 @@ chown -R www-data:www-data /data
   -U www-data \
   -G www-data \
   -M 0700 \
+  -n \
   -- /opt/rt5/sbin/rt-server.fcgi
-
-#-# Start nginx (with "daemon off" in config file)
-echo "Starting nginx"
-exec /usr/sbin/nginx

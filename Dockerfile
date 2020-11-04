@@ -86,7 +86,8 @@ ADD ./etc/logrotate.procmail /etc/logrotate.d/procmail
 RUN echo "Configre postfix" \
   && chown -R root:root /etc/postfix \
   && newaliases \
-  && mkdir -m 1777 /var/log/procmail
+  && mkdir -m 1777 /var/log/procmail \
+  && cp -p /etc/services /var/spool/postfix/etc/services
 
 # Configure RT
 ADD ./scripts/ /usr/local/bin/

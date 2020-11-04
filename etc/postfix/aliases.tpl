@@ -25,5 +25,5 @@ sys:		/dev/null
 uucp:		/dev/null
 www-data:	/dev/null
 
-rt:		"|/usr/bin/procmail -m ACTION=correspond QUEUE=general /etc/postfix/procmailrc.rt"
-rt-comment:	"|/usr/bin/procmail -m ACTION=comment QUEUE=general /etc/postfix/procmailrc.rt"
+rt:		"|/usr/bin/procmail -m ACTION=correspond QUEUE={{queue}} /etc/postfix/procmailrc.rt"
+rt-comment:	"|/usr/bin/procmail -m ACTION=comment QUEUE={{queue}} /etc/postfix/procmailrc.rt"
