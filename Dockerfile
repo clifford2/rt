@@ -88,8 +88,8 @@ ARG RTVER=5.0.0
 ENV RTDIR=rt-${RTVER}
 ENV RTARCHIVE ${RTDIR}.tar.gz
 RUN mkdir /src
-#ADD https://download.bestpractical.com/pub/rt/release/${RTARCHIVE} /src/${RTARCHIVE}
-COPY ${RTARCHIVE} /src/${RTARCHIVE}
+ADD https://download.bestpractical.com/pub/rt/release/${RTARCHIVE} /src/${RTARCHIVE}
+#COPY ${RTARCHIVE} /src/${RTARCHIVE}
 RUN echo "Build RT"; \
   tar -C /src -xzpf /src/${RTARCHIVE} && \
   rm /src/${RTARCHIVE} && \
