@@ -1,7 +1,8 @@
 docker-rt
 =========
 
-This is a docker image for running Best Practical's
+This is a [Docker image](https://hub.docker.com/repository/docker/cliffordw/rt)
+for running Best Practical's
 [Request Tracker](https://bestpractical.com/request-tracker),
 a ticket tracking system.
 
@@ -66,3 +67,10 @@ environment variables, namely:
 
 Additional configuration can be done by mounting custom configuration
 files into `/opt/rt5/etc/RT_SiteConfig.d/`.
+
+Alternatives
+------------
+
+For an alternate approach, using `registry.access.redhat.com/ubi8/ubi-init`
+as base image, see
+[How to move Request Tracker into a Linux container](https://www.redhat.com/sysadmin/request-tracker-container).

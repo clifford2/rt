@@ -6,7 +6,9 @@
 #   time docker build -t cliffordw/rt:5.0.0 . && docker tag cliffordw/rt:5.0.0 cliffordw/rt:latest
 
 #-#-# BASE LAYER #-#-#
-FROM docker.io/library/debian:buster AS base
+# Use debian:buster as base, specifying minor version to trigger rebuilds when necessary
+# Version info from https://www.debian.org/releases/buster/
+FROM docker.io/library/debian:10.7 AS base
 
 # Environment
 ENV LANG=en_US.UTF-8 \
@@ -82,18 +84,19 @@ RUN echo "Install CPAN modules" \
   && rm -r /root/.cpanm
 
 # Build RT
-ENV RT rt-5.0.0
-ENV RTSRC ${RT}.tar.gz
+ARG RTVER=5.0.0
+ENV RTDIR=rt-${RTVER}
+ENV RTARCHIVE ${RTDIR}.tar.gz
 RUN mkdir /src
-#ADD http://download.bestpractical.com/pub/rt/release/${RTSRC} /src/${RTSRC}
-COPY ${RTSRC} /src/${RTSRC}
+#ADD https://download.bestpractical.com/pub/rt/release/${RTARCHIVE} /src/${RTARCHIVE}
+COPY ${RTARCHIVE} /src/${RTARCHIVE}
 RUN echo "Build RT"; \
-  tar -C /src -xzpf /src/${RTSRC} && \
-  rm /src/${RTSRC} && \
-  cd /src/${RT} && ./configure --with-db-type=mysql --enable-gpg --enable-gd --enable-graphviz && \
-  make -C /src/${RT} fixdeps; \
-  make -C /src/${RT} testdeps && \
-  make -C /src/${RT} install
+  tar -C /src -xzpf /src/${RTARCHIVE} && \
+  rm /src/${RTARCHIVE} && \
+  cd /src/${RTDIR} && ./configure --with-db-type=mysql --enable-gpg --enable-gd --enable-graphviz && \
+  make -C /src/${RTDIR} fixdeps; \
+  make -C /src/${RTDIR} testdeps && \
+  make -C /src/${RTDIR} install
 
 
 #-#-# FINAL LAYER #-#-#

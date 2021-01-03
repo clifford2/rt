@@ -5,13 +5,13 @@ networks:
   rtnet:
 
 #-# Define secrets
-# openssl rand -base64 21 > $PWD/passwords/mysql-root-passwd
-# openssl rand -base64 21 > $PWD/passwords/mysql-user-passwd
+# openssl rand -base64 21 > $PWD/config/mysql-root-passwd
+# openssl rand -base64 21 > $PWD/config/mysql-user-passwd
 secrets:                                                                                                                                    
   mysql-root-passwd:
-    file: $PWD/passwords/mysql-root-passwd
+    file: $PWD/config/mysql-root-passwd
   mysql-user-passwd:
-    file: $PWD/passwords/mysql-user-passwd
+    file: $PWD/config/mysql-user-passwd
 
 
 #-# Define services
