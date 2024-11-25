@@ -18,7 +18,7 @@ secrets:
 services:
 
   db:
-    image: mariadb:10.5
+    image: docker.io/library/mariadb:11.6
     networks:
       rtnet:
     volumes:
@@ -30,14 +30,14 @@ services:
     restart: on-failure
 
   rt:
-    image: cliffordw/rt:latest
+    image: docker.io/cliffordw/rt:5.0.7
     networks:
       rtnet:
     volumes:
       - "rtdata:/data"
     ports:
-      - "80:80"
-      - "25:25"
+      - "8080:8080"
+      - "2525:2525"
     secrets:
       - mysql-root-passwd
       - mysql-user-passwd

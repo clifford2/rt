@@ -9,7 +9,7 @@ a ticket tracking system.
 Adapted from <https://github.com/okfn/docker-rt>, with the following changes:
 
 - Switch from PostgreSQL to MariaDB
-- Upgrade to RT 5.0.0
+- Upgrade to RT 5.0.7
 - Expand on configurability
 
 It's currently a work in progress, but it includes:
@@ -18,8 +18,8 @@ It's currently a work in progress, but it includes:
 - nginx
 - postfix + spamassassin
 
-And exposes the RT web interface on container port 80
-and an RT-connected MTA on container port 25.
+And exposes the RT web interface on container port 8080
+and an RT-connected MTA on container port 2525.
 
 From scratch
 ------------

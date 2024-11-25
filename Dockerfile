@@ -3,12 +3,15 @@
 # Based on https://github.com/okfn/docker-rt.git
 #
 # Build with:
-#   time docker build -t cliffordw/rt:5.0.0 . && docker tag cliffordw/rt:5.0.0 cliffordw/rt:latest
+#   RTVER=5.0.7
+#   time podman build -t docker.io/cliffordw/rt:$RTVER . && podman tag docker.io/cliffordw/rt:$RTVER docker.io/cliffordw/rt:latest
 
+#----------------------------------------------------------------------#
 #-#-# BASE LAYER #-#-#
-# Use debian:buster as base, specifying minor version to trigger rebuilds when necessary
-# Version info from https://www.debian.org/releases/buster/
-FROM docker.io/library/debian:10.7 AS base
+#----------------------------------------------------------------------#
+# Use debian:bookworm as base, specifying minor version to trigger rebuilds when necessary
+# Version info from https://www.debian.org/releases/
+FROM docker.io/library/debian:12.8 AS base
 
 # Environment
 ENV LANG=en_US.UTF-8 \
@@ -16,8 +19,8 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US.UTF-8
 
 # Install required packages
-RUN apt-get -q -y update \
-  && DEBIAN_FRONTEND=noninteractive apt-get -q -y install \
+RUN DEBIAN_FRONTEND=noninteractive apt-get -q -y update \
+  && DEBIAN_FRONTEND=noninteractive LANG=C apt-get -q -y install \
   gnupg \
   graphviz \
   perl-modules \
@@ -47,22 +50,25 @@ RUN apt-get -q -y update \
   libserver-starter-perl libparallel-prefork-perl \
   libtype-tiny-perl libtype-tiny-xs-perl \
   libmoox-handlesvia-perl libstring-shellquote-perl \
+  libalgorithm-diff-perl libtext-template-perl \
   nginx-light \
   postfix \
   procmail \
   razor \
   spamassassin \
   spawn-fcgi \
-  netcat \
-  && apt remove -y git gcc && apt autoremove -y \
-  && apt-get clean && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log /usr/share/doc /usr/share/man
+  ncat \
+  && DEBIAN_FRONTEND=noninteractive apt remove -y gcc && DEBIAN_FRONTEND=noninteractive apt autoremove -y \
+  && DEBIAN_FRONTEND=noninteractive apt-get clean && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log /usr/share/doc /usr/share/man
 
 
+#----------------------------------------------------------------------#
 #-#-# BUILD LAYER #-#-#
+#----------------------------------------------------------------------#
 FROM base AS build
 
 # Install required packages
-RUN apt-get -q -y update \
+RUN DEBIAN_FRONTEND=noninteractive apt-get -q -y update \
   && DEBIAN_FRONTEND=noninteractive apt-get -q -y install \
   build-essential \
   git \
@@ -71,7 +77,7 @@ RUN apt-get -q -y update \
 # Set up environment
 ENV PERL_MM_USE_DEFAULT 1
 ENV PERL_MM_OPT "INSTALL_BASE=/usr/local"
-ENV PERL5LIB="/usr/local/lib/perl5"
+ENV PERL5LIB "/usr/local/lib/perl5"
 ENV HOME /root
 
 # Autoconfigure cpan for "make fixdeps", and upgrade
@@ -80,11 +86,11 @@ RUN echo "Configure CPAN" \
   && cpan install CPAN
 # Install known cpan prereqs
 RUN echo "Install CPAN modules" \
-  && cpanm DBIx::SearchBuilder IPC::Run3 MIME::Entity Mozilla::CA Path::Dispatcher Plack::Handler::Starlet Regexp::Common Regexp::Common::net::CIDR Regexp::IPv6 GnuPG::Interface Text::Template \
+  && cpanm DBIx::SearchBuilder IPC::Run3 MIME::Entity Mozilla::CA Path::Dispatcher Plack::Handler::Starlet Regexp::Common Regexp::Common::net::CIDR Regexp::IPv6 GnuPG::Interface Text::WordDiff \
   && rm -r /root/.cpanm
 
 # Build RT
-ARG RTVER=5.0.0
+ARG RTVER=5.0.7
 ENV RTDIR=rt-${RTVER}
 ENV RTARCHIVE ${RTDIR}.tar.gz
 RUN mkdir /src
@@ -99,7 +105,9 @@ RUN echo "Build RT"; \
   make -C /src/${RTDIR} install
 
 
+#----------------------------------------------------------------------#
 #-#-# FINAL LAYER #-#-#
+#----------------------------------------------------------------------#
 FROM base AS run
 
 # Copy build artifacts (PERL modules & RT) from build layer
@@ -135,5 +143,5 @@ ENTRYPOINT [ "/usr/local/bin/entrypoint" ]
 RUN rm -rf /tmp/* /var/tmp/*
 
 VOLUME ["/data"]
-EXPOSE 25
-EXPOSE 80
+EXPOSE 2525
+EXPOSE 8080

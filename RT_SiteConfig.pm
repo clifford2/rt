@@ -33,7 +33,7 @@ use utf8;
 Set( $rtname, $ENV{RT_NAME} || "example.com" );
 Set( $Organisation, $ENV{RT_ORG} || "example.com" );
 Set( $WebDomain, $ENV{WEB_DOMAIN} || "localhost" );
-Set( $WebPort, $ENV{WEB_PORT} || 80 );
+Set( $WebPort, $ENV{WEB_PORT} || 8080 );
 if (defined($ENV{WEB_BASEURL})) {
 	Set( $WebBaseURL, $ENV{WEB_BASEURL} );
 }
